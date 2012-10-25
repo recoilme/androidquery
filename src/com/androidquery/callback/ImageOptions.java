@@ -16,7 +16,9 @@ public class ImageOptions {
 	public int animation;
 	public float ratio;
 	public int round;
+
 	public float anchor = AQuery.ANCHOR_DYNAMIC;
 
-	
+    public static boolean dropShadow;
+    public static int blur = 0;
 }

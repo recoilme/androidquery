@@ -29,16 +29,10 @@ import java.util.WeakHashMap;
 
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Bitmap;
+import android.graphics.*;
 import android.graphics.Bitmap.Config;
-import android.graphics.BitmapFactory;
 import android.graphics.BitmapFactory.Options;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.graphics.PorterDuff.Mode;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.Rect;
-import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
@@ -224,7 +218,7 @@ public class BitmapAjaxCallback extends AbstractAjaxCallback<Bitmap, BitmapAjaxC
 		this.round = radius;
 		return this;
 	}
-	
+
 
 	private static Bitmap decode(String path, byte[] data, BitmapFactory.Options options){
 		
@@ -329,7 +323,14 @@ public class BitmapAjaxCallback extends AbstractAjaxCallback<Bitmap, BitmapAjaxC
 		if(round > 0){
 			bm = getRoundedCornerBitmap(bm, round);
 		}
-        
+
+        if(ImageOptions.blur > 0) {
+            bm = getBlur(bm,ImageOptions.blur);
+        }
+
+        if(ImageOptions.dropShadow == true) {
+            bm = getDropShadow(bm);
+        }
         return bm;
     	
     }
@@ -532,7 +533,7 @@ public class BitmapAjaxCallback extends AbstractAjaxCallback<Bitmap, BitmapAjaxC
 	 * 
 	 * Default is false.
 	 *
-	 * @param limit the new cache limit
+	 * @param delay the new cache limit
 	 */
 	public static void setDelayWrite(boolean delay){
 		DELAY_WRITE = delay;
@@ -673,7 +674,7 @@ public class BitmapAjaxCallback extends AbstractAjaxCallback<Bitmap, BitmapAjaxC
 		if(round > 0){
 			url += "#" + round;
 		}
-		
+
 		return url;
 	}
 	
@@ -975,5 +976,62 @@ public class BitmapAjaxCallback extends AbstractAjaxCallback<Bitmap, BitmapAjaxC
         canvas.drawBitmap(bitmap, rect, rect, paint);
 
         return output;
+    }
+
+    private static Bitmap getBlur(Bitmap bitmap, int blur) {
+
+        BlurMaskFilter blurFilter = new BlurMaskFilter(blur, BlurMaskFilter.Blur.OUTER);
+        Paint shadowPaint = new Paint();
+        shadowPaint.setMaskFilter(blurFilter);
+
+        int[] offsetXY = new int[2];
+        offsetXY[0] = blur;
+        offsetXY[1] = blur;
+        Bitmap originalBitmap = bitmap;
+        Bitmap shadowImage = originalBitmap.extractAlpha(shadowPaint, offsetXY);
+        Bitmap shadowImage32 = shadowImage.copy(Bitmap.Config.ARGB_8888, true);
+
+        Canvas c = new Canvas(shadowImage32);
+        c.drawBitmap(originalBitmap, -offsetXY[0], -offsetXY[1], null);
+
+        return shadowImage32;
+    }
+
+    private static Bitmap getDropShadow(Bitmap bitmap) {
+
+        if (bitmap==null) return null;
+        int think = 6;
+        int w = bitmap.getWidth();
+        int h = bitmap.getHeight();
+
+        int newW = w - (think);
+        int newH = h - (think);
+
+        Bitmap.Config conf = Bitmap.Config.ARGB_8888;
+        Bitmap bmp = Bitmap.createBitmap(w, h, conf);
+        Bitmap sbmp = Bitmap.createScaledBitmap(bitmap, newW, newH, false);
+
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        Canvas c = new Canvas(bmp);
+
+        // Right
+        Shader rshader = new LinearGradient(newW, 0, w, 0, Color.GRAY, Color.LTGRAY, Shader.TileMode.CLAMP);
+        paint.setShader(rshader);
+        c.drawRect(newW, think, w, newH, paint);
+
+        // Bottom
+        Shader bshader = new LinearGradient(0, newH, 0, h, Color.GRAY, Color.LTGRAY, Shader.TileMode.CLAMP);
+        paint.setShader(bshader);
+        c.drawRect(think, newH, newW  , h, paint);
+
+        //Corner
+        Shader cchader = new LinearGradient(0, newH, 0, h, Color.LTGRAY, Color.LTGRAY, Shader.TileMode.CLAMP);
+        paint.setShader(cchader);
+        c.drawRect(newW, newH, w  , h, paint);
+
+
+        c.drawBitmap(sbmp, 0, 0, null);
+
+        return bmp;
     }
 }
